@@ -1,98 +1,25 @@
-import { useEffect, useState } from 'react'
-import {
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  type User,
-} from 'firebase/auth'
-import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore'
-import './App.css'
-import { TMDB_API_KEY } from './config'
-import { auth, db, isFirebaseConfigured } from './firebase'
+import './App.css';
 
-type ViewMode = 'movies' | 'series' | 'watchlist'
-type ScreenMode = 'home' | 'search' | 'detail' | 'profile'
-type MediaType = 'movie' | 'tv'
-type EntryStatus = 'watchlist' | 'watched'
+import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
+import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 
-type MediaItem = {
-  id: number
-  mediaType: MediaType
-  title: string
-  year: string
-  overview: string
-  posterPath: string | null
-  runtime?: string
-  genres?: string[]
-}
+import { TMDB_API_KEY } from './config';
+import { auth, db, isFirebaseConfigured } from './firebase';
+import DetailPage from './pages/DetailPage';
+import HomePage from './pages/HomePage';
+import ProfilePage from './pages/ProfilePage';
+import SearchPage from './pages/SearchPage';
+import { mapMovieResult, mapSeriesResult, TMDB_BASE_URL } from './utils/media';
 
-type SavedEntry = {
-  mediaType: MediaType
-  mediaId: number
-  title: string
-  year: string
-  overview: string
-  posterPath: string | null
-  status: EntryStatus
-  rating: number | null
-}
-
-const TMDB_BASE_URL = 'https://api.themoviedb.org/3'
-const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500'
-
-type StarRatingProps = {
-  value: number | null
-  onChange: (value: number | null) => void
-  label?: string
-}
-
-function StarRating({ value, onChange, label }: StarRatingProps) {
-  return (
-    <div className="rating-select">
-      {label ? <span>{label}</span> : null}
-      <div className="star-rating" role="radiogroup" aria-label="Rating">
-        {Array.from({ length: 5 }, (_, index) => {
-          const starValue = index + 1
-          const isFilled = value !== null && value >= starValue
-          const isHalf = value !== null && value >= index + 0.5 && value < starValue
-
-          return (
-            <div key={starValue} className="star-shell">
-              <button
-                type="button"
-                className="star-half-button star-half-button--left"
-                aria-label={`Set rating ${index + 0.5}`}
-                onClick={() => onChange(index + 0.5)}
-              />
-              <button
-                type="button"
-                className="star-half-button star-half-button--right"
-                aria-label={`Set rating ${starValue}`}
-                onClick={() => onChange(starValue)}
-              />
-              <span className={`material-symbols-outlined star-icon ${isFilled ? 'is-filled' : ''} ${isHalf ? 'is-half' : ''}`}>
-                star
-              </span>
-            </div>
-          )
-        })}
-        <button type="button" className="clear-rating" onClick={() => onChange(null)}>
-          Clear
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function getPosterUrl(posterPath: string | null) {
-  return posterPath ? `${TMDB_IMAGE_BASE_URL}${posterPath}` : ''
-}
-
+import type { User } from 'firebase/auth';
+import type { EntryStatus, HomeFilter, MediaItem, SavedEntry, ViewMode, ScreenMode } from './types'
 function App() {
   const [activeView, setActiveView] = useState<ViewMode>('movies')
   const [screen, setScreen] = useState<ScreenMode>('home')
   const [darkMode, setDarkMode] = useState(false)
+  const [homeFilter, setHomeFilter] = useState<HomeFilter>('tracked')
+  const [viewStyle, setViewStyle] = useState<'grid' | 'list'>('grid')
   const [profileName, setProfileName] = useState('')
   const [user, setUser] = useState<User | null>(null)
   const [statusMessage, setStatusMessage] = useState('')
@@ -177,11 +104,15 @@ function App() {
 
     try {
       const profileRef = doc(db, 'users', user.uid)
-      await setDoc(profileRef, {
-        uid: user.uid,
-        name: profileName,
-        updatedAt: new Date().toISOString(),
-      }, { merge: true })
+      await setDoc(
+        profileRef,
+        {
+          uid: user.uid,
+          name: profileName,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      )
       setStatusMessage('Profile saved to Firebase.')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
@@ -291,6 +222,7 @@ function App() {
     }
 
     const entryKey = `${item.mediaType}:${item.id}`
+    const existingEntry = entries[entryKey]
     const nextEntry: SavedEntry = {
       mediaType: item.mediaType,
       mediaId: item.id,
@@ -299,7 +231,7 @@ function App() {
       overview: item.overview,
       posterPath: item.posterPath,
       status,
-      rating,
+      rating: rating === null ? existingEntry?.rating ?? null : rating,
     }
 
     try {
@@ -312,21 +244,31 @@ function App() {
     }
   }
 
+  const watchlistEntries = Object.values(entries).filter((entry) => entry.status === 'watchlist')
+  const ratedEntries = Object.values(entries).filter((entry) => entry.rating)
+  const trackedEntries = Object.values(entries)
+
+  const filteredWatchlistItems = homeFilter === 'tracked'
+    ? trackedEntries
+    : homeFilter === 'rated'
+      ? ratedEntries
+      : homeFilter === 'pending'
+        ? watchlistEntries
+        : trackedEntries
+
   const visibleItems: MediaItem[] =
     activeView === 'movies'
       ? movies
       : activeView === 'series'
         ? series
-        : Object.values(entries)
-            .filter((entry) => entry.status === 'watchlist' || entry.status === 'watched')
-            .map((entry) => ({
-              id: entry.mediaId,
-              mediaType: entry.mediaType,
-              title: entry.title,
-              year: entry.year,
-              overview: entry.overview,
-              posterPath: entry.posterPath,
-            }))
+        : filteredWatchlistItems.map((entry) => ({
+            id: entry.mediaId,
+            mediaType: entry.mediaType,
+            title: entry.title,
+            year: entry.year,
+            overview: entry.overview,
+            posterPath: entry.posterPath,
+          }))
 
   return (
     <div className="app-shell">
@@ -396,315 +338,53 @@ function App() {
       </header>
 
       {screen === 'profile' ? (
-        <main className="app-shell__main single">
-          <section className="main-card profile-card">
-            <div className="card-heading">
-              <div>
-                <p className="eyebrow">Profile</p>
-                <h2>{user ? (profileName ? `Welcome, ${profileName}` : 'Set your nickname') : 'Sign in to sync your account'}</h2>
-              </div>
-              <button type="button" className="secondary-button" onClick={() => setScreen('home')}>
-                <span className="material-symbols-outlined">arrow_back</span>
-                <span>Back to app</span>
-              </button>
-            </div>
-
-            {!user ? (
-              <div className="auth-form">
-                <p className="profile-note">
-                  Watchtower uses Google sign-in so your profile, watchlist, and ratings can sync to Firebase.
-                </p>
-
-                <button type="button" className="primary-button" onClick={handleGoogleSignIn}>
-                  <span className="material-symbols-outlined">login</span>
-                  <span>Continue with Google</span>
-                </button>
-              </div>
-            ) : (
-              <>
-                {user ? <p className="profile-note">Signed in as {user.email ?? 'your Google account'}</p> : null}
-
-                <label className="profile-field" htmlFor="profile-name">
-                  <span>Nickname</span>
-                  <input
-                    id="profile-name"
-                    value={profileName}
-                    onChange={(event) => setProfileName(event.target.value)}
-                    placeholder="Enter your nickname"
-                  />
-                </label>
-
-                <div className="profile-actions">
-                  <button type="button" className="primary-button" onClick={handleSaveProfile}>
-                    <span className="material-symbols-outlined">save</span>
-                    <span>Save profile</span>
-                  </button>
-                  <button type="button" className="secondary-button" onClick={handleSignOut}>
-                    <span className="material-symbols-outlined">logout</span>
-                    <span>Sign out</span>
-                  </button>
-                </div>
-              </>
-            )}
-
-            {statusMessage ? <p className="profile-note">{statusMessage}</p> : null}
-            {!isFirebaseConfigured ? (
-              <p className="profile-note">
-                Firebase is not configured yet. Add your Firebase project credentials to the environment variables so your data can sync.
-              </p>
-            ) : null}
-          </section>
-        </main>
+        <ProfilePage
+          user={user}
+          profileName={profileName}
+          statusMessage={statusMessage}
+          isFirebaseConfigured={isFirebaseConfigured}
+          onProfileNameChange={setProfileName}
+          onSaveProfile={handleSaveProfile}
+          onSignOut={handleSignOut}
+          onGoogleSignIn={handleGoogleSignIn}
+          onBack={() => setScreen('home')}
+        />
       ) : screen === 'search' ? (
-        <main className="app-shell__main single">
-          <section className="main-card">
-            <div className="card-heading">
-              <div>
-                <p className="eyebrow">Search</p>
-                <h2>Find movies and TV shows</h2>
-              </div>
-              <button type="button" className="secondary-button" onClick={() => setScreen('home')}>
-                <span className="material-symbols-outlined">arrow_back</span>
-                <span>Back home</span>
-              </button>
-            </div>
-
-            <div className="search-bar">
-              <input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    void handleSearch()
-                  }
-                }}
-                placeholder="Search for a title"
-              />
-              <button type="button" className="primary-button" onClick={() => void handleSearch()}>
-                <span className="material-symbols-outlined">search</span>
-                <span>Search</span>
-              </button>
-            </div>
-
-            {searchLoading ? <p className="profile-note">Searching TMDB…</p> : null}
-
-            {!searchLoading && searchResults.length === 0 && searchQuery ? (
-              <p className="profile-note">No results yet. Try another title.</p>
-            ) : null}
-
-            <div className="content-grid">
-              {searchResults.map((item) => {
-                const entry = entries[`${item.mediaType}:${item.id}`]
-                return (
-                  <article key={`${item.mediaType}-${item.id}`} className="media-card">
-                    <button type="button" className="media-title-button" onClick={() => void handleOpenDetail(item)}>
-                      <div className="media-poster-shell">
-                        {item.posterPath ? <img className="media-poster" src={getPosterUrl(item.posterPath)} alt={item.title} /> : <div className="media-poster-fallback"><span className="material-symbols-outlined">movie</span></div>}
-                        <div className="media-poster-badge">{item.mediaType === 'movie' ? 'Movie' : 'TV'}</div>
-                      </div>
-                      <div className="media-card-copy">
-                        <p className="media-year">{item.year}</p>
-                        <h3>{item.title}</h3>
-                      </div>
-                    </button>
-                    <div className="media-card-footer">
-                      <p className="media-rating">
-                        <span className="material-symbols-outlined">star</span>
-                        <span>{entry?.rating ? `${entry.rating.toFixed(1)}/5` : 'Unrated'}</span>
-                      </p>
-                      <p className="media-status">{entry?.status === 'watched' ? 'Watched' : entry?.status === 'watchlist' ? 'In watchlist' : 'Not saved'}</p>
-                    </div>
-                    <div className="card-actions">
-                      <button
-                        type="button"
-                        className={`icon-only-action ${entry?.status === 'watchlist' ? 'is-active' : ''}`}
-                        onClick={() => void handleSaveEntry(item, 'watchlist')}
-                        title={entry?.status === 'watchlist' ? 'Already in watchlist' : 'Add to watchlist'}
-                        aria-label={entry?.status === 'watchlist' ? 'Already in watchlist' : 'Add to watchlist'}
-                      >
-                        <span className="material-symbols-outlined">{entry?.status === 'watchlist' ? 'bookmark_added' : 'bookmark_add'}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`icon-only-action ${entry?.status === 'watched' ? 'is-active' : ''}`}
-                        onClick={() => void handleSaveEntry(item, 'watched')}
-                        title={entry?.status === 'watched' ? 'Already marked watched' : 'Mark watched'}
-                        aria-label={entry?.status === 'watched' ? 'Already marked watched' : 'Mark watched'}
-                      >
-                        <span className="material-symbols-outlined">{entry?.status === 'watched' ? 'check_circle' : 'check_circle_outline'}</span>
-                      </button>
-                    </div>
-                    <StarRating
-                      value={entry?.rating ?? null}
-                      onChange={(rating) => void handleSaveEntry(item, entry?.status ?? 'watched', rating)}
-                    />
-                  </article>
-                )
-              })}
-            </div>
-          </section>
-        </main>
+        <SearchPage
+          searchQuery={searchQuery}
+          searchLoading={searchLoading}
+          searchResults={searchResults}
+          entries={entries}
+          onSearchQueryChange={setSearchQuery}
+          onSearch={handleSearch}
+          onOpenDetail={handleOpenDetail}
+          onSaveEntry={handleSaveEntry}
+          onBack={() => setScreen('home')}
+        />
       ) : screen === 'detail' && selectedItem ? (
-        <main className="app-shell__main single">
-          <section className="main-card detail-card">
-            <div className="card-heading">
-              <div>
-                <p className="eyebrow">Details</p>
-                <h2>{selectedItem.title}</h2>
-              </div>
-              <button type="button" className="secondary-button" onClick={() => setScreen('home')}>
-                Back to list
-              </button>
-            </div>
-
-            {detailLoading ? <p className="profile-note">Loading details…</p> : null}
-
-            <div className="detail-body">
-              <div className="detail-hero">
-                <div className="detail-poster">
-                  {selectedItem.posterPath ? <img className="media-poster" src={getPosterUrl(selectedItem.posterPath)} alt={selectedItem.title} /> : <div className="media-poster-fallback"><span className="material-symbols-outlined">movie</span></div>}
-                </div>
-                <div className="detail-copy">
-                  <p className="detail-meta">{selectedItem.year} • {selectedItem.runtime ?? 'Details loading'}</p>
-                  <p>{selectedItem.overview || 'No synopsis available yet.'}</p>
-                  {selectedItem.genres?.length ? <p className="detail-genres">{selectedItem.genres.join(' • ')}</p> : null}
-                  <div className="card-actions">
-                    <button
-                      type="button"
-                      className={`icon-only-action ${entries[`${selectedItem.mediaType}:${selectedItem.id}`]?.status === 'watchlist' ? 'is-active' : ''}`}
-                      onClick={() => void handleSaveEntry(selectedItem, 'watchlist')}
-                      title={entries[`${selectedItem.mediaType}:${selectedItem.id}`]?.status === 'watchlist' ? 'Already in watchlist' : 'Add to watchlist'}
-                      aria-label={entries[`${selectedItem.mediaType}:${selectedItem.id}`]?.status === 'watchlist' ? 'Already in watchlist' : 'Add to watchlist'}
-                    >
-                      <span className="material-symbols-outlined">{entries[`${selectedItem.mediaType}:${selectedItem.id}`]?.status === 'watchlist' ? 'bookmark_added' : 'bookmark_add'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`icon-only-action ${entries[`${selectedItem.mediaType}:${selectedItem.id}`]?.status === 'watched' ? 'is-active' : ''}`}
-                      onClick={() => void handleSaveEntry(selectedItem, 'watched')}
-                      title={entries[`${selectedItem.mediaType}:${selectedItem.id}`]?.status === 'watched' ? 'Already marked watched' : 'Mark watched'}
-                      aria-label={entries[`${selectedItem.mediaType}:${selectedItem.id}`]?.status === 'watched' ? 'Already marked watched' : 'Mark watched'}
-                    >
-                      <span className="material-symbols-outlined">{entries[`${selectedItem.mediaType}:${selectedItem.id}`]?.status === 'watched' ? 'check_circle' : 'check_circle_outline'}</span>
-                    </button>
-                  </div>
-                  <StarRating
-                    label="Your rating"
-                    value={entries[`${selectedItem.mediaType}:${selectedItem.id}`]?.rating ?? null}
-                    onChange={(rating) => void handleSaveEntry(selectedItem, entries[`${selectedItem.mediaType}:${selectedItem.id}`]?.status ?? 'watched', rating)}
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-        </main>
+        <DetailPage
+          selectedItem={selectedItem}
+          detailLoading={detailLoading}
+          entries={entries}
+          onBack={() => setScreen('home')}
+          onSaveEntry={handleSaveEntry}
+          onChangeRating={(item, rating) => handleSaveEntry(item, entries[`${item.mediaType}:${item.id}`]?.status ?? 'watched', rating)}
+        />
       ) : (
-        <main className="app-shell__main">
-          <section className="main-card">
-            <div className="card-heading">
-              <div>
-                <p className="eyebrow">Now browsing</p>
-                <h2>{activeView === 'movies' ? 'Movies' : activeView === 'series' ? 'TV Shows' : 'Watchlist'}</h2>
-              </div>
-              <span className="status-pill">TMDB ready: {TMDB_API_KEY ? 'yes' : 'no'}</span>
-            </div>
-
-            <div className="content-grid">
-              {visibleItems.map((item) => {
-                const entry = entries[`${item.mediaType}:${item.id}`]
-                return (
-                  <article key={`${item.mediaType}-${item.id}`} className="media-card">
-                    <button type="button" className="media-title-button" onClick={() => void handleOpenDetail(item)}>
-                      <div className="media-poster-shell">
-                        {item.posterPath ? <img className="media-poster" src={getPosterUrl(item.posterPath)} alt={item.title} /> : <div className="media-poster-fallback"><span className="material-symbols-outlined">movie</span></div>}
-                        <div className="media-poster-badge">{item.mediaType === 'movie' ? 'Movie' : 'TV'}</div>
-                      </div>
-                      <div className="media-card-copy">
-                        <p className="media-year">{item.year}</p>
-                        <h3>{item.title}</h3>
-                      </div>
-                    </button>
-                    <div className="media-card-footer">
-                      <p className="media-rating">
-                        <span className="material-symbols-outlined">star</span>
-                        <span>{entry?.rating ? `${entry.rating.toFixed(1)}/5` : 'Unrated'}</span>
-                      </p>
-                      <p className="media-status">{entry?.status === 'watched' ? 'Watched' : entry?.status === 'watchlist' ? 'In watchlist' : 'Not saved'}</p>
-                    </div>
-                    <div className="card-actions">
-                      <button
-                        type="button"
-                        className={`icon-only-action ${entry?.status === 'watchlist' ? 'is-active' : ''}`}
-                        onClick={() => void handleSaveEntry(item, 'watchlist')}
-                        title={entry?.status === 'watchlist' ? 'Already in watchlist' : 'Add to watchlist'}
-                        aria-label={entry?.status === 'watchlist' ? 'Already in watchlist' : 'Add to watchlist'}
-                      >
-                        <span className="material-symbols-outlined">{entry?.status === 'watchlist' ? 'bookmark_added' : 'bookmark_add'}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`icon-only-action ${entry?.status === 'watched' ? 'is-active' : ''}`}
-                        onClick={() => void handleSaveEntry(item, 'watched')}
-                        title={entry?.status === 'watched' ? 'Already marked watched' : 'Mark watched'}
-                        aria-label={entry?.status === 'watched' ? 'Already marked watched' : 'Mark watched'}
-                      >
-                        <span className="material-symbols-outlined">{entry?.status === 'watched' ? 'check_circle' : 'check_circle_outline'}</span>
-                      </button>
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-          </section>
-
-          <aside className="side-card">
-            <div className="card-heading compact">
-              <div>
-                <p className="eyebrow">Overview</p>
-                <h2>What’s next?</h2>
-              </div>
-            </div>
-            <ul className="overview-list">
-              <li>
-                <strong>Tracked</strong>
-                <span>{Object.keys(entries).length} titles</span>
-              </li>
-              <li>
-                <strong>Rated</strong>
-                <span>{Object.values(entries).filter((entry) => entry.rating).length} favorites</span>
-              </li>
-              <li>
-                <strong>Pending</strong>
-                <span>{Object.values(entries).filter((entry) => entry.status === 'watchlist').length} planned</span>
-              </li>
-            </ul>
-          </aside>
-        </main>
+        <HomePage
+          activeView={activeView}
+          visibleItems={visibleItems}
+          entries={entries}
+          onOpenDetail={handleOpenDetail}
+          onSaveEntry={(item, status) => handleSaveEntry(item, status)}
+          homeFilter={homeFilter}
+          onFilterChange={setHomeFilter}
+          viewStyle={viewStyle}
+          onViewStyleChange={setViewStyle}
+        />
       )}
     </div>
   )
-}
-
-function mapMovieResult(result: any): MediaItem {
-  return {
-    id: result.id,
-    mediaType: 'movie',
-    title: result.title ?? 'Untitled movie',
-    year: result.release_date?.slice(0, 4) ?? '',
-    overview: result.overview ?? '',
-    posterPath: result.poster_path ?? null,
-  }
-}
-
-function mapSeriesResult(result: any): MediaItem {
-  return {
-    id: result.id,
-    mediaType: 'tv',
-    title: result.name ?? 'Untitled show',
-    year: result.first_air_date?.slice(0, 4) ?? '',
-    overview: result.overview ?? '',
-    posterPath: result.poster_path ?? null,
-  }
 }
 
 export default App

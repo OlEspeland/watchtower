@@ -2,12 +2,9 @@ import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, type Auth } from 'firebase/auth'
 import { getFirestore, type Firestore } from 'firebase/firestore'
 
-const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
-const isLocalhost = currentHost === 'localhost' || currentHost === '127.0.0.1'
-
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'VITE_FIREBASE_API_KEY_PLACEHOLDER',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || (isLocalhost ? 'localhost' : 'VITE_FIREBASE_AUTH_DOMAIN_PLACEHOLDER'),
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'VITE_FIREBASE_AUTH_DOMAIN_PLACEHOLDER',
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'VITE_FIREBASE_PROJECT_ID_PLACEHOLDER',
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'VITE_FIREBASE_PROJECT_ID_PLACEHOLDER.firebasestorage.app',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || 'VITE_FIREBASE_MESSAGING_SENDER_ID_PLACEHOLDER',

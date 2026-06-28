@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithRedirect,
+  signInWithPopup,
   signOut as firebaseSignOut,
   type User,
 } from 'firebase/auth'
@@ -199,11 +199,16 @@ function App() {
     try {
       const provider = new GoogleAuthProvider()
       provider.setCustomParameters({ prompt: 'select_account' })
-      await signInWithRedirect(auth, provider)
-      setStatusMessage('Redirecting to Google sign-in…')
+      setStatusMessage('Opening Google sign-in…')
+      await signInWithPopup(auth, provider)
+      setStatusMessage('Signed in successfully.')
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error'
-      setStatusMessage(`Google sign-in failed. ${message}`)
+      if (error instanceof Error && 'code' in error && (error as { code?: string }).code === 'auth/popup-closed-by-user') {
+        setStatusMessage('Sign-in was cancelled.')
+      } else {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        setStatusMessage(`Google sign-in failed. ${message}`)
+      }
       console.error(error)
     }
   }

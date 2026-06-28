@@ -198,10 +198,12 @@ function App() {
 
     try {
       const provider = new GoogleAuthProvider()
+      provider.setCustomParameters({ prompt: 'select_account' })
       await signInWithPopup(auth, provider)
       setStatusMessage('Signed in with Google successfully.')
     } catch (error) {
-      setStatusMessage('Google sign-in failed. Please try again.')
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      setStatusMessage(`Google sign-in failed. ${message}`)
       console.error(error)
     }
   }

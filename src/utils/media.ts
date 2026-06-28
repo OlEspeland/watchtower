@@ -15,6 +15,7 @@ export function mapMovieResult(result: any): MediaItem {
     year: result.release_date?.slice(0, 4) ?? '',
     overview: result.overview ?? '',
     posterPath: result.poster_path ?? null,
+    releaseDate: result.release_date ?? undefined,
   }
 }
 
@@ -26,5 +27,6 @@ export function mapSeriesResult(result: any): MediaItem {
     year: result.first_air_date?.slice(0, 4) ?? '',
     overview: result.overview ?? '',
     posterPath: result.poster_path ?? null,
+    releaseDate: result.first_air_date ?? undefined,
   }
 }

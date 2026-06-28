@@ -1,11 +1,17 @@
 import type { User } from 'firebase/auth'
+import { ACCENT_COLORS } from '../colors'
+import CardHeading from '../components/CardHeading'
+
+import type { AccentKey } from '../colors'
 
 type ProfilePageProps = {
   user: User | null
   profileName: string
+  accentColor: AccentKey
   statusMessage: string
   isFirebaseConfigured: boolean
   onProfileNameChange: (value: string) => void
+  onAccentColorChange: (value: AccentKey) => void
   onSaveProfile: () => void
   onSignOut: () => void
   onGoogleSignIn: () => void
@@ -15,9 +21,11 @@ type ProfilePageProps = {
 export default function ProfilePage({
   user,
   profileName,
+  accentColor,
   statusMessage,
   isFirebaseConfigured,
   onProfileNameChange,
+  onAccentColorChange,
   onSaveProfile,
   onSignOut,
   onGoogleSignIn,
@@ -26,16 +34,12 @@ export default function ProfilePage({
   return (
     <main className="app-shell__main single">
       <section className="main-card profile-card">
-        <div className="card-heading">
-          <div>
-            <p className="eyebrow">Profile</p>
-            <h2>{user ? (profileName ? `Welcome, ${profileName}` : 'Set your nickname') : 'Sign in to sync your account'}</h2>
-          </div>
-          <button type="button" className="secondary-button" onClick={onBack}>
-            <span className="material-symbols-outlined">arrow_back</span>
-            <span>Back to app</span>
-          </button>
-        </div>
+        <CardHeading
+          eyebrow="Profile"
+          title={user ? (profileName ? `Welcome, ${profileName}` : 'Set your nickname') : 'Sign in to sync your account'}
+          onBack={onBack}
+          backLabel="Back to app"
+        />
 
         {!user ? (
           <div className="auth-form">
@@ -58,6 +62,22 @@ export default function ProfilePage({
                 onChange={(event) => onProfileNameChange(event.target.value)}
                 placeholder="Enter your nickname"
               />
+            </label>
+            <label className="profile-field">
+              <span>Accent color</span>
+              <div className="accent-picker">
+                {ACCENT_COLORS.map((color) => (
+                  <button
+                    key={color.key}
+                    type="button"
+                    className={`accent-swatch ${accentColor === color.key ? 'is-active' : ''}`}
+                    style={{ backgroundColor: color.light }}
+                    onClick={() => onAccentColorChange(color.key)}
+                    aria-label={color.name}
+                    title={color.name}
+                  />
+                ))}
+              </div>
             </label>
             <div className="profile-actions">
               <button type="button" className="primary-button" onClick={onSaveProfile}>

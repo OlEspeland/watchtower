@@ -4,6 +4,7 @@ import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut as fir
 import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 
+import { ACCENT_COLORS } from './colors';
 import { TMDB_API_KEY } from './config';
 import { auth, db, isFirebaseConfigured } from './firebase';
 import DetailPage from './pages/DetailPage';
@@ -13,11 +14,17 @@ import SearchPage from './pages/SearchPage';
 import { mapMovieResult, mapSeriesResult, TMDB_BASE_URL } from './utils/media';
 
 import type { User } from 'firebase/auth';
+import type { AccentKey } from './colors'
 import type { EntryStatus, HomeFilter, MediaItem, SavedEntry, ViewMode, ScreenMode } from './types'
 function App() {
   const [activeView, setActiveView] = useState<ViewMode>('movies')
   const [screen, setScreen] = useState<ScreenMode>('home')
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('watchtower-dark') === 'true')
+  const [accentColor, setAccentColor] = useState<AccentKey>(() => {
+    const saved = localStorage.getItem('watchtower-accent')
+    if (saved && ACCENT_COLORS.some((c) => c.key === saved)) return saved as AccentKey
+    return 'purple'
+  })
   const [homeFilter, setHomeFilter] = useState<HomeFilter>('tracked')
   const [viewStyle, setViewStyle] = useState<'grid' | 'list'>('grid')
   const [profileName, setProfileName] = useState('')
@@ -25,6 +32,12 @@ function App() {
   const [statusMessage, setStatusMessage] = useState('')
   const [movies, setMovies] = useState<MediaItem[]>([])
   const [series, setSeries] = useState<MediaItem[]>([])
+  const [moviesPage, setMoviesPage] = useState(1)
+  const [seriesPage, setSeriesPage] = useState(1)
+  const [hasMoreMovies, setHasMoreMovies] = useState(true)
+  const [hasMoreSeries, setHasMoreSeries] = useState(true)
+  const [searchPage, setSearchPage] = useState(1)
+  const [hasMoreSearch, setHasMoreSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<MediaItem[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
@@ -34,7 +47,16 @@ function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
+    document.documentElement.dataset.accent = accentColor
+  }, [darkMode, accentColor])
+
+  useEffect(() => {
+    localStorage.setItem('watchtower-dark', String(darkMode))
   }, [darkMode])
+
+  useEffect(() => {
+    localStorage.setItem('watchtower-accent', accentColor)
+  }, [accentColor])
 
   useEffect(() => {
     if (!auth) {
@@ -54,6 +76,10 @@ function App() {
       if (profileSnap.exists()) {
         const data = profileSnap.data()
         setProfileName(data.name ?? '')
+        if (data.accent && ACCENT_COLORS.some((c) => c.key === data.accent)) {
+          setAccentColor(data.accent)
+          localStorage.setItem('watchtower-accent', data.accent)
+        }
       } else {
         setProfileName('')
       }
@@ -88,6 +114,8 @@ function App() {
         const [moviesData, seriesData] = await Promise.all([moviesResponse.json(), seriesResponse.json()])
         setMovies((moviesData.results ?? []).slice(0, 8).map(mapMovieResult))
         setSeries((seriesData.results ?? []).slice(0, 8).map(mapSeriesResult))
+        setHasMoreMovies((moviesData.total_pages ?? 1) > 1)
+        setHasMoreSeries((seriesData.total_pages ?? 1) > 1)
       } catch (error) {
         console.error(error)
       }
@@ -95,6 +123,30 @@ function App() {
 
     void loadDiscover()
   }, [])
+
+  const handleLoadMoreDiscover = async (type: 'movie' | 'tv') => {
+    if (!TMDB_API_KEY) return
+
+    const page = type === 'movie' ? moviesPage + 1 : seriesPage + 1
+    const endpoint = type === 'movie' ? 'movie' : 'tv'
+    const mapper = type === 'movie' ? mapMovieResult : mapSeriesResult
+
+    try {
+      const response = await fetch(
+        `${TMDB_BASE_URL}/discover/${endpoint}?api_key=${TMDB_API_KEY}&language=en-US&sort_by=popularity.desc&page=${page}`
+      )
+      const data = await response.json()
+      const items = (data.results ?? []).map(mapper)
+      const update = type === 'movie' ? setMovies : setSeries
+      const setPage = type === 'movie' ? setMoviesPage : setSeriesPage
+      const setHasMore = type === 'movie' ? setHasMoreMovies : setHasMoreSeries
+      update((prev) => [...prev, ...items])
+      setPage(page)
+      setHasMore((data.total_pages ?? 1) > page)
+    } catch (error) {
+      console.error(error)
+    }
+  }
 
   const handleSaveProfile = async () => {
     if (!user || !db) {
@@ -109,6 +161,7 @@ function App() {
         {
           uid: user.uid,
           name: profileName,
+          accent: accentColor,
           updatedAt: new Date().toISOString(),
         },
         { merge: true }
@@ -151,6 +204,10 @@ function App() {
 
     await firebaseSignOut(auth)
     setProfileName('')
+    setDarkMode(false)
+    setAccentColor('purple')
+    localStorage.removeItem('watchtower-dark')
+    localStorage.removeItem('watchtower-accent')
     setEntries({})
     setStatusMessage('Signed out.')
   }
@@ -178,6 +235,7 @@ function App() {
         posterPath: data.poster_path ?? item.posterPath,
         runtime: item.mediaType === 'movie' ? `${data.runtime ?? 0} min` : `${data.episode_run_time?.[0] ?? 0} min/ep`,
         genres: data.genres?.slice(0, 3).map((genre: { name: string }) => genre.name) ?? [],
+        releaseDate: data.release_date ?? data.first_air_date ?? undefined,
       })
     } catch (error) {
       console.error(error)
@@ -201,15 +259,43 @@ function App() {
       ])
 
       const [movieData, seriesData] = await Promise.all([movieResponse.json(), seriesResponse.json()])
-      const combined = [
+      const results = [
         ...(movieData.results ?? []).slice(0, 6).map(mapMovieResult),
         ...(seriesData.results ?? []).slice(0, 6).map(mapSeriesResult),
       ]
-      setSearchResults(combined)
+      setSearchResults(results)
+      setSearchPage(1)
+      setHasMoreSearch((movieData.total_pages ?? 1) > 1 || (seriesData.total_pages ?? 1) > 1)
       setScreen('search')
     } catch (error) {
       console.error(error)
       setSearchResults([])
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  const handleLoadMoreSearch = async () => {
+    if (!TMDB_API_KEY || !searchQuery.trim()) return
+
+    const page = searchPage + 1
+    setSearchLoading(true)
+
+    try {
+      const [movieResponse, seriesResponse] = await Promise.all([
+        fetch(`${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&language=en-US&query=${encodeURIComponent(searchQuery)}&page=${page}`),
+        fetch(`${TMDB_BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&language=en-US&query=${encodeURIComponent(searchQuery)}&page=${page}`),
+      ])
+      const [movieData, seriesData] = await Promise.all([movieResponse.json(), seriesResponse.json()])
+      const results = [
+        ...(movieData.results ?? []).slice(0, 6).map(mapMovieResult),
+        ...(seriesData.results ?? []).slice(0, 6).map(mapSeriesResult),
+      ]
+      setSearchResults((prev) => [...prev, ...results])
+      setSearchPage(page)
+      setHasMoreSearch((movieData.total_pages ?? 1) > page || (seriesData.total_pages ?? 1) > page)
+    } catch (error) {
+      console.error(error)
     } finally {
       setSearchLoading(false)
     }
@@ -230,6 +316,7 @@ function App() {
       year: item.year,
       overview: item.overview,
       posterPath: item.posterPath,
+      releaseDate: item.releaseDate,
       status,
       rating: rating === null ? existingEntry?.rating ?? null : rating,
     }
@@ -268,6 +355,7 @@ function App() {
             year: entry.year,
             overview: entry.overview,
             posterPath: entry.posterPath,
+            releaseDate: entry.releaseDate,
           }))
 
   return (
@@ -341,9 +429,11 @@ function App() {
         <ProfilePage
           user={user}
           profileName={profileName}
+          accentColor={accentColor}
           statusMessage={statusMessage}
           isFirebaseConfigured={isFirebaseConfigured}
           onProfileNameChange={setProfileName}
+          onAccentColorChange={setAccentColor}
           onSaveProfile={handleSaveProfile}
           onSignOut={handleSignOut}
           onGoogleSignIn={handleGoogleSignIn}
@@ -354,9 +444,11 @@ function App() {
           searchQuery={searchQuery}
           searchLoading={searchLoading}
           searchResults={searchResults}
+          hasMoreSearch={hasMoreSearch}
           entries={entries}
           onSearchQueryChange={setSearchQuery}
           onSearch={handleSearch}
+          onLoadMoreSearch={handleLoadMoreSearch}
           onOpenDetail={handleOpenDetail}
           onSaveEntry={handleSaveEntry}
           onBack={() => setScreen('home')}
@@ -381,6 +473,9 @@ function App() {
           onFilterChange={setHomeFilter}
           viewStyle={viewStyle}
           onViewStyleChange={setViewStyle}
+          hasMoreMovies={hasMoreMovies}
+          hasMoreSeries={hasMoreSeries}
+          onLoadMoreDiscover={handleLoadMoreDiscover}
         />
       )}
     </div>

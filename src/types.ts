@@ -13,6 +13,7 @@ export type MediaItem = {
   posterPath: string | null
   runtime?: string
   genres?: string[]
+  releaseDate?: string
 }
 
 export type SavedEntry = {
@@ -24,4 +25,5 @@ export type SavedEntry = {
   posterPath: string | null
   status: EntryStatus
   rating: number | null
+  releaseDate?: string
 }

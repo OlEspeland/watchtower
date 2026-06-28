@@ -8,6 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>watchtower</title>
+    <script>
+      document.documentElement.dataset.theme = localStorage.getItem('watchtower-dark') === 'true' ? 'dark' : 'light';
+      document.documentElement.dataset.accent = localStorage.getItem('watchtower-accent') || 'purple';
+    </script>
   </head>
   <body>
     <div id="root"></div>

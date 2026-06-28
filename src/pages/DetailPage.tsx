@@ -1,6 +1,14 @@
 import type { MediaItem, SavedEntry, EntryStatus } from '../types'
-import StarRating from '../components/StarRating';
-import { getPosterUrl } from '../utils/media';
+import CardHeading from '../components/CardHeading'
+import MediaPoster from '../components/MediaPoster'
+import EntryActions from '../components/EntryActions'
+import StarRating from '../components/StarRating'
+import { getPosterUrl } from '../utils/media'
+
+function formatReleaseDate(dateString: string): string {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 type DetailPageProps = {
   selectedItem: MediaItem
@@ -19,20 +27,19 @@ export default function DetailPage({
   onSaveEntry,
   onChangeRating,
 }: DetailPageProps) {
-  const currentEntry = entries[`${selectedItem.mediaType}:${selectedItem.id}`]
+  const entryKey = `${selectedItem.mediaType}:${selectedItem.id}`
+  const currentEntry = entries[entryKey]
+  const isUnreleased = selectedItem.releaseDate && new Date(selectedItem.releaseDate) > new Date()
 
   return (
     <main className="app-shell__main single">
       <section className="main-card detail-card">
-        <div className="card-heading">
-          <div>
-            <p className="eyebrow">Details</p>
-            <h2>{selectedItem.title}</h2>
-          </div>
-          <button type="button" className="secondary-button" onClick={onBack}>
-            Back to list
-          </button>
-        </div>
+        <CardHeading
+          eyebrow="Details"
+          title={selectedItem.title}
+          onBack={onBack}
+          backLabel="Back to list"
+        />
 
         {detailLoading ? <p className="profile-note">Loading details…</p> : null}
 
@@ -42,9 +49,7 @@ export default function DetailPage({
               {selectedItem.posterPath ? (
                 <img className="media-poster" src={getPosterUrl(selectedItem.posterPath)} alt={selectedItem.title} />
               ) : (
-                <div className="media-poster-fallback">
-                  <span className="material-symbols-outlined">movie</span>
-                </div>
+                <MediaPoster posterPath={null} title={selectedItem.title} mediaType={selectedItem.mediaType} />
               )}
             </div>
             <div className="detail-copy">
@@ -53,30 +58,12 @@ export default function DetailPage({
               </p>
               <p>{selectedItem.overview || 'No synopsis available yet.'}</p>
               {selectedItem.genres?.length ? <p className="detail-genres">{selectedItem.genres.join(' • ')}</p> : null}
-              <div className="card-actions">
-                <button
-                  type="button"
-                  className={`icon-only-action ${currentEntry?.status === 'watchlist' ? 'is-active' : ''}`}
-                  onClick={() => onSaveEntry(selectedItem, 'watchlist')}
-                  title={currentEntry?.status === 'watchlist' ? 'Already in watchlist' : 'Add to watchlist'}
-                  aria-label={currentEntry?.status === 'watchlist' ? 'Already in watchlist' : 'Add to watchlist'}
-                >
-                  <span className="material-symbols-outlined">
-                    {currentEntry?.status === 'watchlist' ? 'bookmark_added' : 'bookmark_add'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className={`icon-only-action ${currentEntry?.status === 'watched' ? 'is-active' : ''}`}
-                  onClick={() => onSaveEntry(selectedItem, 'watched')}
-                  title={currentEntry?.status === 'watched' ? 'Already marked watched' : 'Mark watched'}
-                  aria-label={currentEntry?.status === 'watched' ? 'Already marked watched' : 'Mark watched'}
-                >
-                  <span className="material-symbols-outlined">
-                    {currentEntry?.status === 'watched' ? 'check_circle' : 'check_circle_outline'}
-                  </span>
-                </button>
-              </div>
+              {isUnreleased ? <p className="detail-release-date">Releases {formatReleaseDate(selectedItem.releaseDate!)}</p> : null}
+              <EntryActions
+                entry={currentEntry}
+                onAddToWatchlist={() => onSaveEntry(selectedItem, 'watchlist')}
+                onMarkWatched={() => onSaveEntry(selectedItem, 'watched')}
+              />
               <StarRating
                 label="Your rating"
                 value={currentEntry?.rating ?? null}

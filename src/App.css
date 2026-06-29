@@ -1082,6 +1082,306 @@
   gap: 0.6rem;
 }
 
+/* Profile tabs */
+.profile-tabs {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  margin-bottom: 1rem;
+  border-radius: 999px;
+  background: var(--accent-bg);
+}
+
+.profile-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  transition: background 180ms ease, color 180ms ease;
+  white-space: nowrap;
+}
+
+.profile-tab.is-active {
+  background: var(--accent);
+  color: white;
+}
+
+.profile-tab .material-symbols-outlined {
+  font-size: 1.15rem;
+}
+
+/* Toast notification */
+.toast-notification {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.75rem 1.25rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  animation: toast-in 300ms ease;
+  pointer-events: none;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Collections */
+.collections-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.collection-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: border-color 180ms ease;
+}
+
+.collection-card:hover {
+  border-color: var(--accent);
+}
+
+.collection-card-main {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.collection-card-avatar {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.collection-card-info {
+  flex: 1;
+}
+
+.collection-card-name {
+  font-size: 0.9rem;
+  color: var(--text-h);
+}
+
+.collection-card-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.collection-card-delete {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 180ms ease, background 180ms ease;
+}
+
+.collection-card-delete:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.create-collection-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.create-collection-inputs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.create-collection-inputs input {
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text-h);
+  font: inherit;
+}
+
+.collection-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.collection-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: border-color 180ms ease;
+}
+
+.collection-item-row:hover {
+  border-color: var(--accent);
+}
+
+.collection-item-main {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.collection-item-poster {
+  flex-shrink: 0;
+  width: 40px;
+  height: 60px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.collection-item-poster-fallback {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.collection-item-poster-fallback .media-poster-shell {
+  width: 40px;
+  height: 60px;
+  border-radius: 6px;
+}
+
+.collection-item-info {
+  flex: 1;
+}
+
+.collection-item-title {
+  font-size: 0.85rem;
+  color: var(--text-h);
+}
+
+.collection-item-year {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.collection-item-remove {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 180ms ease;
+}
+
+.collection-item-remove:hover {
+  color: #ef4444;
+}
+
+/* Collection picker on detail page */
+.collection-picker-wrapper {
+  position: relative;
+  margin-top: 0.75rem;
+}
+
+.collection-picker-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  min-width: 200px;
+  margin-top: 0.35rem;
+  padding: 0.35rem;
+  border-radius: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.collection-picker-option {
+  padding: 0.6rem 0.75rem;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-size: 0.85rem;
+  transition: background 150ms ease;
+}
+
+.collection-picker-option:hover {
+  background: var(--accent-bg);
+  color: var(--text-h);
+}
+
+/* Friend reviews on detail page */
+.friend-reviews-section {
+  margin-top: 1rem;
+}
+
+.friend-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
 @media (max-width: 860px) {
   .app-shell__header {
     flex-wrap: wrap;
@@ -1308,6 +1608,18 @@
     gap: 0.6rem;
   }
 
+  /* Collection picker */
+  .collection-picker-dropdown {
+    position: static;
+    box-shadow: none;
+    margin-top: 0.25rem;
+    padding: 0.25rem;
+  }
+
+  .create-collection-form {
+    flex-direction: column;
+  }
+
   /* Review card */
   .review-card {
     padding: 0.6rem;
@@ -1328,6 +1640,15 @@
   }
 
   /* Profile */
+  .profile-tab {
+    font-size: 0.78rem;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .profile-tab .material-symbols-outlined {
+    font-size: 1rem;
+  }
+
   .profile-field input {
     padding: 0.65rem 0.8rem;
   }
@@ -1464,6 +1785,21 @@
 
   .card-heading h2 {
     font-size: 1rem;
+  }
+
+  .profile-tab {
+    font-size: 0.72rem;
+    padding: 0.3rem 0.35rem;
+  }
+
+  .profile-tab .material-symbols-outlined {
+    font-size: 0.85rem;
+  }
+
+  .profile-tab .badge-count {
+    font-size: 0.55rem;
+    min-width: 12px;
+    height: 12px;
   }
 
   .search-bar input,

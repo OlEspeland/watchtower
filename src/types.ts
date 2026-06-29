@@ -1,8 +1,26 @@
 export type ViewMode = 'movies' | 'series' | 'watchlist'
-export type ScreenMode = 'home' | 'search' | 'detail' | 'profile' | 'social' | 'userDetail'
+export type ScreenMode = 'home' | 'search' | 'detail' | 'profile' | 'social' | 'userDetail' | 'collections' | 'collectionDetail'
 export type MediaType = 'movie' | 'tv'
 export type EntryStatus = 'watchlist' | 'watched'
 export type HomeFilter = 'tracked' | 'rated' | 'pending'
+
+export type Collection = {
+  id: string
+  name: string
+  description: string
+  createdAt: string
+  updatedAt: string
+  itemCount: number
+}
+
+export type CollectionItem = {
+  mediaType: MediaType
+  mediaId: number
+  title: string
+  year: string
+  posterPath: string | null
+  addedAt: string
+}
 
 export type MediaItem = {
   id: number

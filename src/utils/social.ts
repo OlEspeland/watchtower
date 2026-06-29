@@ -1,7 +1,7 @@
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore'
 import type { Unsubscribe } from 'firebase/firestore'
 import { db } from '../firebase'
-import type { MediaItem, Review, FriendRequestData, UserProfile } from '../types'
+import type { Collection, CollectionItem, MediaItem, Review, FriendRequestData, UserProfile } from '../types'
 
 export function getReviewKey(item: MediaItem): string {
   return `${item.mediaType}:${item.id}`
@@ -137,4 +137,119 @@ export function subscribeFriends(uid: string, onData: (friendUids: string[]) => 
   return onSnapshot(ref, (snapshot) => {
     onData(snapshot.docs.map((d) => d.id))
   })
+}
+
+/* ─── Friend Reviews ─── */
+
+export async function loadFriendReviewsForMedia(
+  friendUids: string[],
+  itemKey: string,
+): Promise<(Review & { authorUid: string; authorName: string })[]> {
+  if (!db || friendUids.length === 0) return []
+  const results: (Review & { authorUid: string; authorName: string })[] = []
+  for (const uid of friendUids) {
+    const ref = doc(db, 'users', uid, 'reviews', itemKey)
+    const snap = await getDoc(ref)
+    if (snap.exists()) {
+      const profile = await loadUserProfile(uid)
+      results.push({
+        ...(snap.data() as Review),
+        authorUid: uid,
+        authorName: profile?.name ?? 'Unknown',
+      })
+    }
+  }
+  return results.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
+/* ─── Collections ─── */
+
+export function generateCollectionId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+}
+
+export async function createCollection(uid: string, name: string, description: string): Promise<string> {
+  if (!db) throw new Error('Firebase not configured')
+  const id = generateCollectionId()
+  const now = new Date().toISOString()
+  await setDoc(doc(db, 'users', uid, 'collections', id), {
+    id,
+    name,
+    description,
+    createdAt: now,
+    updatedAt: now,
+    itemCount: 0,
+  })
+  return id
+}
+
+export async function deleteCollection(uid: string, collectionId: string): Promise<void> {
+  if (!db) throw new Error('Firebase not configured')
+  const itemsSnap = await getDocs(collection(db, 'users', uid, 'collections', collectionId, 'items'))
+  const batch = itemsSnap.docs.map((d) => deleteDoc(d.ref))
+  await Promise.all(batch)
+  await deleteDoc(doc(db, 'users', uid, 'collections', collectionId))
+}
+
+export function subscribeCollections(uid: string, onData: (collections: Collection[]) => void): Unsubscribe | null {
+  if (!db) return null
+  const ref = collection(db, 'users', uid, 'collections')
+  const q = query(ref, orderBy('updatedAt', 'desc'))
+  return onSnapshot(q, (snapshot) => {
+    onData(snapshot.docs.map((d) => d.data() as Collection))
+  })
+}
+
+export async function addToCollection(
+  uid: string,
+  collectionId: string,
+  item: MediaItem,
+): Promise<void> {
+  if (!db) throw new Error('Firebase not configured')
+  const key = `${item.mediaType}:${item.id}`
+  const now = new Date().toISOString()
+  await setDoc(doc(db, 'users', uid, 'collections', collectionId, 'items', key), {
+    mediaType: item.mediaType,
+    mediaId: item.id,
+    title: item.title,
+    year: item.year,
+    posterPath: item.posterPath,
+    addedAt: now,
+  })
+  const colRef = doc(db, 'users', uid, 'collections', collectionId)
+  const colSnap = await getDoc(colRef)
+  if (colSnap.exists()) {
+    const current = (colSnap.data() as Collection).itemCount ?? 0
+    await setDoc(colRef, { itemCount: current + 1, updatedAt: now }, { merge: true })
+  }
+}
+
+export async function removeFromCollection(uid: string, collectionId: string, itemKey: string): Promise<void> {
+  if (!db) throw new Error('Firebase not configured')
+  await deleteDoc(doc(db, 'users', uid, 'collections', collectionId, 'items', itemKey))
+  const colRef = doc(db, 'users', uid, 'collections', collectionId)
+  const colSnap = await getDoc(colRef)
+  if (colSnap.exists()) {
+    const current = (colSnap.data() as Collection).itemCount ?? 0
+    await setDoc(colRef, { itemCount: Math.max(0, current - 1), updatedAt: new Date().toISOString() }, { merge: true })
+  }
+}
+
+export function subscribeCollectionItems(
+  uid: string,
+  collectionId: string,
+  onData: (items: CollectionItem[]) => void,
+): Unsubscribe | null {
+  if (!db) return null
+  const ref = collection(db, 'users', uid, 'collections', collectionId, 'items')
+  const q = query(ref, orderBy('addedAt', 'desc'))
+  return onSnapshot(q, (snapshot) => {
+    onData(snapshot.docs.map((d) => d.data() as CollectionItem))
+  })
+}
+
+export async function isInCollection(uid: string, collectionId: string, itemKey: string): Promise<boolean> {
+  if (!db) return false
+  const snap = await getDoc(doc(db, 'users', uid, 'collections', collectionId, 'items', itemKey))
+  return snap.exists()
 }

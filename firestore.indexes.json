@@ -1,0 +1,11 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "usernames",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
+    }
+  ]
+}

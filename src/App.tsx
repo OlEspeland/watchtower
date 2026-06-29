@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ACCENT_COLORS } from './colors';
 import { TMDB_API_KEY } from './config';
 import { auth, db, isFirebaseConfigured } from './firebase';
+import CollectionDetailPage from './pages/CollectionDetailPage';
 import DetailPage from './pages/DetailPage';
 import HomePage from './pages/HomePage';
 import ProfilePage from './pages/ProfilePage';
@@ -15,8 +16,10 @@ import SocialPage from './pages/SocialPage';
 import UserDetailPage from './pages/UserDetailPage';
 import { mapMovieResult, mapSeriesResult, TMDB_BASE_URL } from './utils/media';
 import {
-    acceptFriendRequest, declineFriendRequest, deleteReview, hasSentRequest, loadUserProfile, loadUserReviews,
-    removeFriend, saveReview, searchUsers, sendFriendRequest, subscribeFriendRequests, subscribeFriends,
+    acceptFriendRequest, addToCollection, createCollection, declineFriendRequest, deleteCollection,
+    deleteReview, hasSentRequest, loadFriendReviewsForMedia, loadUserProfile, loadUserReviews,
+    removeFromCollection, removeFriend, saveReview, searchUsers, sendFriendRequest,
+    subscribeCollections, subscribeCollectionItems, subscribeFriendRequests, subscribeFriends,
     subscribeReviews
 } from './utils/social';
 
@@ -24,7 +27,7 @@ import type { Unsubscribe } from 'firebase/firestore'
 
 import type { User } from 'firebase/auth'
 import type { AccentKey } from './colors'
-import type { EntryStatus, FriendRequestData, HomeFilter, MediaItem, Review, SavedEntry, ScreenMode, UserProfile, ViewMode } from './types'
+import type { Collection, CollectionItem, EntryStatus, FriendRequestData, HomeFilter, MediaItem, Review, SavedEntry, ScreenMode, UserProfile, ViewMode } from './types'
 
 function App() {
   const [activeView, setActiveView] = useState<ViewMode>('movies')
@@ -40,6 +43,8 @@ function App() {
   const [profileName, setProfileName] = useState('')
   const [user, setUser] = useState<User | null>(null)
   const [statusMessage, setStatusMessage] = useState('')
+  const [toastMessage, setToastMessage] = useState('')
+  const [toastTimer, setToastTimer] = useState<ReturnType<typeof setTimeout> | null>(null)
   const [movies, setMovies] = useState<MediaItem[]>([])
   const [series, setSeries] = useState<MediaItem[]>([])
   const [moviesPage, setMoviesPage] = useState(1)
@@ -65,11 +70,42 @@ function App() {
   const [targetIsFriend, setTargetIsFriend] = useState(false)
   const [targetHasPendingRequest, setTargetHasPendingRequest] = useState(false)
 
+  const prevScreen = useRef<ScreenMode>('home')
+
   const unsubFriendRequests = useRef<Unsubscribe | null>(null)
   const unsubFriends = useRef<Unsubscribe | null>(null)
   const unsubReviews = useRef<Unsubscribe | null>(null)
 
   const requestCount = useMemo(() => friendRequests.length, [friendRequests])
+
+  const showToastRef = useRef((message: string) => {
+    setToastMessage(message)
+    if (toastTimer) clearTimeout(toastTimer)
+    setToastTimer(setTimeout(() => setToastMessage(''), 5000))
+  })
+
+  const prevRequestCount = useRef(0)
+  useEffect(() => {
+    if (friendRequests.length > prevRequestCount.current) {
+      const newNames = friendRequests.slice(0, friendRequests.length - prevRequestCount.current).map((r) => r.fromName)
+      if (newNames.length <= 2) {
+        showToastRef.current(`Friend request from ${newNames.join(', ')}`)
+      } else {
+        showToastRef.current(`${newNames.length} new friend requests`)
+      }
+    }
+    prevRequestCount.current = friendRequests.length
+  }, [friendRequests])
+
+  const [friendReviews, setFriendReviews] = useState<(Review & { authorUid: string; authorName: string })[]>([])
+  const [friendReviewLoading, setFriendReviewLoading] = useState(false)
+
+  const [collections, setCollections] = useState<Collection[]>([])
+  const [collectionDetailId, setCollectionDetailId] = useState<string | null>(null)
+  const [collectionItems, setCollectionItems] = useState<CollectionItem[]>([])
+
+  const unsubCollections = useRef<Unsubscribe | null>(null)
+  const unsubCollectionItems = useRef<Unsubscribe | null>(null)
 
   const reviewsRef = useRef(reviews)
   reviewsRef.current = reviews
@@ -117,7 +153,16 @@ function App() {
           localStorage.setItem('watchtower-accent', data.accent)
         }
       } else {
-        setProfileName('')
+        const defaultName = currentUser.email
+          ? currentUser.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') || `user_${currentUser.uid.slice(0, 6)}`
+          : `user_${currentUser.uid.slice(0, 6)}`
+        setProfileName(defaultName)
+        await setDoc(
+          profileRef,
+          { uid: currentUser.uid, name: defaultName, accent: 'purple', updatedAt: new Date().toISOString() },
+          { merge: true }
+        )
+        await setDoc(doc(db, 'usernames', currentUser.uid), { name: defaultName.toLowerCase() }, { merge: true })
       }
 
       const entriesRef = collection(db, 'users', currentUser.uid, 'entries')
@@ -146,6 +191,10 @@ function App() {
       unsubFriends.current = subscribeFriends(currentUser.uid, (uids) => {
         setFriendUids(uids)
       })
+
+      unsubCollections.current = subscribeCollections(currentUser.uid, (colList) => {
+        setCollections(colList)
+      })
     })
 
     return () => {
@@ -153,6 +202,8 @@ function App() {
       unsubFriendRequests.current?.()
       unsubFriends.current?.()
       unsubReviews.current?.()
+      unsubCollections.current?.()
+      unsubCollectionItems.current?.()
     }
   }, [])
 
@@ -286,10 +337,15 @@ function App() {
     setFriendRequests([])
     setFriends([])
     setFriendUids([])
+    setCollections([])
+    setCollectionItems([])
+    setCollectionDetailId(null)
+    setFriendReviews([])
     setStatusMessage('Signed out.')
   }
 
   const handleOpenDetail = async (item: MediaItem) => {
+    prevScreen.current = screen
     setScreen('detail')
     setSelectedItem(item)
     setDetailLoading(true)
@@ -314,6 +370,16 @@ function App() {
         genres: data.genres?.slice(0, 3).map((genre: { name: string }) => genre.name) ?? [],
         releaseDate: data.release_date ?? data.first_air_date ?? undefined,
       })
+
+      if (friendUids.length > 0 && user) {
+        setFriendReviewLoading(true)
+        const itemKey = `${item.mediaType}:${item.id}`
+        const reviewsList = await loadFriendReviewsForMedia(friendUids, itemKey)
+        setFriendReviews(reviewsList)
+        setFriendReviewLoading(false)
+      } else {
+        setFriendReviews([])
+      }
     } catch (error) {
       console.error(error)
     } finally {
@@ -509,6 +575,76 @@ function App() {
     }
   }
 
+  const handleCreateCollection = async (name: string, description: string) => {
+    if (!user || !db) return
+    try {
+      await createCollection(user.uid, name, description)
+      showToastRef.current(`Collection "${name}" created.`)
+    } catch (error) {
+      showToastRef.current('Unable to create collection.')
+      console.error(error)
+    }
+  }
+
+  const handleDeleteCollection = async (id: string) => {
+    if (!user || !db) return
+    try {
+      await deleteCollection(user.uid, id)
+      showToastRef.current('Collection deleted.')
+      if (collectionDetailId === id) {
+        setCollectionDetailId(null)
+        unsubCollectionItems.current?.()
+      }
+    } catch (error) {
+      showToastRef.current('Unable to delete collection.')
+      console.error(error)
+    }
+  }
+
+  const handleOpenCollection = (id: string) => {
+    setCollectionDetailId(id)
+    setScreen('collectionDetail')
+    unsubCollectionItems.current?.()
+    if (user) {
+      unsubCollectionItems.current = subscribeCollectionItems(user.uid, id, (items) => {
+        setCollectionItems(items)
+      })
+    }
+  }
+
+  const handleAddToCollection = async (collectionId: string, item: MediaItem) => {
+    if (!user || !db) return
+    try {
+      await addToCollection(user.uid, collectionId, item)
+      showToastRef.current('Added to collection.')
+    } catch (error) {
+      showToastRef.current('Unable to add to collection.')
+      console.error(error)
+    }
+  }
+
+  const handleRemoveFromCollection = async (itemKey: string) => {
+    if (!user || !db || !collectionDetailId) return
+    try {
+      await removeFromCollection(user.uid, collectionDetailId, itemKey)
+    } catch (error) {
+      showToastRef.current('Unable to remove item.')
+      console.error(error)
+    }
+  }
+
+  const handleOpenDetailFromCollection = async (item: CollectionItem) => {
+    const mediaItem: MediaItem = {
+      id: item.mediaId,
+      mediaType: item.mediaType,
+      title: item.title,
+      year: item.year,
+      posterPath: item.posterPath,
+      overview: '',
+    }
+    await handleOpenDetail(mediaItem)
+  }
+
   const watchlistEntries = Object.values(entries).filter((entry) => entry.status === 'watchlist')
   const ratedEntryKeys = new Set(Object.keys(reviews))
   const ratedEntries = Object.values(entries).filter((entry) => ratedEntryKeys.has(`${entry.mediaType}:${entry.mediaId}`))
@@ -622,6 +758,8 @@ function App() {
         </div>
       </header>
 
+      {toastMessage ? <div className="toast-notification">{toastMessage}</div> : null}
+
       {screen === 'profile' ? (
         <ProfilePage
           user={user}
@@ -629,14 +767,37 @@ function App() {
           accentColor={accentColor}
           statusMessage={statusMessage}
           isFirebaseConfigured={isFirebaseConfigured}
-          friendCount={friends.length}
+          friendRequests={friendRequests}
+          friends={friends}
+          friendUids={friendUids}
+          collections={collections}
           onProfileNameChange={setProfileName}
           onAccentColorChange={setAccentColor}
           onSaveProfile={handleSaveProfile}
           onSignOut={handleSignOut}
           onGoogleSignIn={handleGoogleSignIn}
           onBack={() => setScreen('home')}
-          onOpenSocial={handleOpenSocial}
+          onAcceptRequest={handleAcceptRequest}
+          onDeclineRequest={handleDeclineRequest}
+          onSearchUsers={searchUsers}
+          onViewUser={handleViewUser}
+          onSendRequest={handleSendRequest}
+          onRemoveFriend={handleRemoveFriend}
+          onOpenCollection={handleOpenCollection}
+          onCreateCollection={handleCreateCollection}
+          onDeleteCollection={handleDeleteCollection}
+        />
+      ) : screen === 'collectionDetail' && collectionDetailId ? (
+        <CollectionDetailPage
+          collection={collections.find((c) => c.id === collectionDetailId) ?? null}
+          items={collectionItems}
+          onRemoveItem={handleRemoveFromCollection}
+          onOpenDetail={handleOpenDetailFromCollection}
+          onBack={() => {
+            unsubCollectionItems.current?.()
+            setCollectionDetailId(null)
+            setScreen('profile')
+          }}
         />
       ) : screen === 'social' ? (
         <SocialPage
@@ -687,10 +848,14 @@ function App() {
           detailLoading={detailLoading}
           entries={entries}
           existingReview={existingReview}
-          onBack={() => setScreen('home')}
+          friendReviews={friendReviews}
+          friendReviewLoading={friendReviewLoading}
+          collections={collections}
+          onBack={() => setScreen(prevScreen.current)}
           onSaveEntry={handleSaveEntry}
           onSaveReview={handleSaveReview}
           onDeleteReview={handleDeleteReview}
+          onAddToCollection={handleAddToCollection}
         />
       ) : (
         <HomePage

@@ -44,5 +44,15 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if request.auth.uid == uid;
     }
+
+    // Collections: owner can read and write
+    match /users/{userId}/collections/{collectionId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Collection items: owner can read and write
+    match /users/{userId}/collections/{collectionId}/items/{itemKey} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
   }
 }

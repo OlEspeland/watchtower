@@ -10,12 +10,14 @@ type ProfilePageProps = {
   accentColor: AccentKey
   statusMessage: string
   isFirebaseConfigured: boolean
+  friendCount: number
   onProfileNameChange: (value: string) => void
   onAccentColorChange: (value: AccentKey) => void
   onSaveProfile: () => void
   onSignOut: () => void
   onGoogleSignIn: () => void
   onBack: () => void
+  onOpenSocial: () => void
 }
 
 export default function ProfilePage({
@@ -24,12 +26,14 @@ export default function ProfilePage({
   accentColor,
   statusMessage,
   isFirebaseConfigured,
+  friendCount,
   onProfileNameChange,
   onAccentColorChange,
   onSaveProfile,
   onSignOut,
   onGoogleSignIn,
   onBack,
+  onOpenSocial,
 }: ProfilePageProps) {
   return (
     <main className="app-shell__main single">
@@ -83,6 +87,10 @@ export default function ProfilePage({
               <button type="button" className="primary-button" onClick={onSaveProfile}>
                 <span className="material-symbols-outlined">save</span>
                 <span>Save profile</span>
+              </button>
+              <button type="button" className="secondary-button" onClick={onOpenSocial}>
+                <span className="material-symbols-outlined">people</span>
+                <span>Friends ({friendCount})</span>
               </button>
               <button type="button" className="secondary-button" onClick={onSignOut}>
                 <span className="material-symbols-outlined">logout</span>

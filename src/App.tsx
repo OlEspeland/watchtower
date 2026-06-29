@@ -1,21 +1,41 @@
-import './App.css';
+import './App.css'
 
-import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth'
+import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { ACCENT_COLORS } from './colors';
-import { TMDB_API_KEY } from './config';
-import { auth, db, isFirebaseConfigured } from './firebase';
-import DetailPage from './pages/DetailPage';
-import HomePage from './pages/HomePage';
-import ProfilePage from './pages/ProfilePage';
-import SearchPage from './pages/SearchPage';
-import { mapMovieResult, mapSeriesResult, TMDB_BASE_URL } from './utils/media';
+import type { Unsubscribe } from 'firebase/firestore'
 
-import type { User } from 'firebase/auth';
+import { ACCENT_COLORS } from './colors'
+import { TMDB_API_KEY } from './config'
+import { auth, db, isFirebaseConfigured } from './firebase'
+import DetailPage from './pages/DetailPage'
+import HomePage from './pages/HomePage'
+import ProfilePage from './pages/ProfilePage'
+import SearchPage from './pages/SearchPage'
+import SocialPage from './pages/SocialPage'
+import UserDetailPage from './pages/UserDetailPage'
+import { mapMovieResult, mapSeriesResult, TMDB_BASE_URL } from './utils/media'
+import {
+  saveReview,
+  deleteReview,
+  searchUsers,
+  sendFriendRequest,
+  acceptFriendRequest,
+  declineFriendRequest,
+  removeFriend,
+  loadUserProfile,
+  loadUserReviews,
+  subscribeFriendRequests,
+  subscribeFriends,
+  subscribeReviews,
+  hasPendingRequest,
+} from './utils/social'
+
+import type { User } from 'firebase/auth'
 import type { AccentKey } from './colors'
-import type { EntryStatus, HomeFilter, MediaItem, SavedEntry, ViewMode, ScreenMode } from './types'
+import type { EntryStatus, FriendRequestData, HomeFilter, MediaItem, Review, SavedEntry, ScreenMode, UserProfile, ViewMode } from './types'
+
 function App() {
   const [activeView, setActiveView] = useState<ViewMode>('movies')
   const [screen, setScreen] = useState<ScreenMode>('home')
@@ -45,6 +65,25 @@ function App() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [entries, setEntries] = useState<Record<string, SavedEntry>>({})
 
+  const [reviews, setReviews] = useState<Record<string, Review>>({})
+  const [friendRequests, setFriendRequests] = useState<FriendRequestData[]>([])
+  const [friends, setFriends] = useState<UserProfile[]>([])
+  const [friendUids, setFriendUids] = useState<string[]>([])
+  const [targetUser, setTargetUser] = useState<UserProfile | null>(null)
+  const [targetUserReviews, setTargetUserReviews] = useState<Review[]>([])
+  const [targetUserLoading, setTargetUserLoading] = useState(false)
+  const [targetIsFriend, setTargetIsFriend] = useState(false)
+  const [targetHasPendingRequest, setTargetHasPendingRequest] = useState(false)
+
+  const unsubFriendRequests = useRef<Unsubscribe | null>(null)
+  const unsubFriends = useRef<Unsubscribe | null>(null)
+  const unsubReviews = useRef<Unsubscribe | null>(null)
+
+  const requestCount = useMemo(() => friendRequests.length, [friendRequests])
+
+  const reviewsRef = useRef(reviews)
+  reviewsRef.current = reviews
+
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
     document.documentElement.dataset.accent = accentColor
@@ -59,14 +98,21 @@ function App() {
   }, [accentColor])
 
   useEffect(() => {
-    if (!auth) {
-      return
-    }
+    if (!auth) return
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser)
 
+      unsubFriendRequests.current?.()
+      unsubFriends.current?.()
+      unsubReviews.current?.()
+
       if (!currentUser || !db) {
+        setEntries({})
+        setReviews({})
+        setFriendRequests([])
+        setFriends([])
+        setFriendUids([])
         return
       }
 
@@ -94,16 +140,50 @@ function App() {
       })
 
       setEntries(nextEntries)
+
+      unsubReviews.current = subscribeReviews(currentUser.uid, (reviewsList) => {
+        const map: Record<string, Review> = {}
+        reviewsList.forEach((r) => {
+          map[`${r.mediaType}:${r.mediaId}`] = r
+        })
+        setReviews(map)
+      })
+
+      unsubFriendRequests.current = subscribeFriendRequests(currentUser.uid, (requests) => {
+        setFriendRequests(requests)
+      })
+
+      unsubFriends.current = subscribeFriends(currentUser.uid, (uids) => {
+        setFriendUids(uids)
+      })
     })
 
-    return () => unsubscribe()
+    return () => {
+      unsubscribe()
+      unsubFriendRequests.current?.()
+      unsubFriends.current?.()
+      unsubReviews.current?.()
+    }
   }, [])
+
+
+
+  useEffect(() => {
+    const loadProfiles = async () => {
+      if (!db) return
+      const profiles: UserProfile[] = []
+      for (const uid of friendUids) {
+        const profile = await loadUserProfile(uid)
+        if (profile) profiles.push(profile)
+      }
+      setFriends(profiles)
+    }
+    loadProfiles()
+  }, [friendUids])
 
   useEffect(() => {
     const loadDiscover = async () => {
-      if (!TMDB_API_KEY) {
-        return
-      }
+      if (!TMDB_API_KEY) return
 
       try {
         const [moviesResponse, seriesResponse] = await Promise.all([
@@ -166,6 +246,11 @@ function App() {
         },
         { merge: true }
       )
+
+      if (profileName.trim()) {
+        await setDoc(doc(db, 'usernames', user.uid), { name: profileName.toLowerCase().trim() }, { merge: true })
+      }
+
       setStatusMessage('Profile saved to Firebase.')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
@@ -198,9 +283,7 @@ function App() {
   }
 
   const handleSignOut = async () => {
-    if (!auth) {
-      return
-    }
+    if (!auth) return
 
     await firebaseSignOut(auth)
     setProfileName('')
@@ -209,6 +292,10 @@ function App() {
     localStorage.removeItem('watchtower-dark')
     localStorage.removeItem('watchtower-accent')
     setEntries({})
+    setReviews({})
+    setFriendRequests([])
+    setFriends([])
+    setFriendUids([])
     setStatusMessage('Signed out.')
   }
 
@@ -301,14 +388,13 @@ function App() {
     }
   }
 
-  const handleSaveEntry = async (item: MediaItem, status: EntryStatus, rating: number | null = null) => {
+  const handleSaveEntry = async (item: MediaItem, status: EntryStatus) => {
     if (!user || !db) {
       setStatusMessage('Please sign in to save movies and shows.')
       return
     }
 
     const entryKey = `${item.mediaType}:${item.id}`
-    const existingEntry = entries[entryKey]
     const nextEntry: SavedEntry = {
       mediaType: item.mediaType,
       mediaId: item.id,
@@ -318,7 +404,6 @@ function App() {
       posterPath: item.posterPath,
       releaseDate: item.releaseDate,
       status,
-      rating: rating === null ? existingEntry?.rating ?? null : rating,
     }
 
     try {
@@ -331,8 +416,112 @@ function App() {
     }
   }
 
+  const handleSaveReview = async (item: MediaItem, rating: number, comment: string) => {
+    if (!user || !db) {
+      setStatusMessage('Please sign in to save a review.')
+      return
+    }
+
+    try {
+      await saveReview(user.uid, item, rating, comment)
+      setStatusMessage('Review saved.')
+    } catch (error) {
+      setStatusMessage('Unable to save review.')
+      console.error(error)
+    }
+  }
+
+  const handleDeleteReview = async (item: MediaItem) => {
+    if (!user || !db) return
+
+    try {
+      await deleteReview(user.uid, item)
+      setStatusMessage('Review deleted.')
+    } catch (error) {
+      setStatusMessage('Unable to delete review.')
+      console.error(error)
+    }
+  }
+
+  const handleOpenSocial = () => {
+    setScreen('social')
+  }
+
+  const handleViewUser = async (targetUid: string) => {
+    if (!user) return
+    if (targetUid === user.uid) {
+      setScreen('profile')
+      return
+    }
+
+    setScreen('userDetail')
+    setTargetUserLoading(true)
+
+    const profile = await loadUserProfile(targetUid)
+    setTargetUser(profile)
+
+    if (profile) {
+      const reviewsList = await loadUserReviews(targetUid)
+      setTargetUserReviews(reviewsList)
+    } else {
+      setTargetUserReviews([])
+    }
+
+    setTargetIsFriend(friendUids.includes(targetUid))
+    setTargetHasPendingRequest(await hasPendingRequest(targetUid, user.uid))
+
+    setTargetUserLoading(false)
+  }
+
+  const handleSendRequest = async (toUid: string, toName: string) => {
+    if (!user || !db) return
+
+    try {
+      await sendFriendRequest(user.uid, profileName || user.displayName || 'Unknown', toUid)
+      setStatusMessage(`Friend request sent to ${toName}.`)
+    } catch (error) {
+      setStatusMessage('Unable to send friend request.')
+      console.error(error)
+    }
+  }
+
+  const handleAcceptRequest = async (fromUid: string, fromName: string) => {
+    if (!user || !db) return
+
+    try {
+      await acceptFriendRequest(user.uid, fromUid)
+      setStatusMessage(`You are now friends with ${fromName}.`)
+    } catch (error) {
+      setStatusMessage('Unable to accept request.')
+      console.error(error)
+    }
+  }
+
+  const handleDeclineRequest = async (fromUid: string) => {
+    if (!user || !db) return
+
+    try {
+      await declineFriendRequest(user.uid, fromUid)
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const handleRemoveFriend = async (friendUid: string) => {
+    if (!user || !db) return
+
+    try {
+      await removeFriend(user.uid, friendUid)
+      setFriends((prev) => prev.filter((f) => f.uid !== friendUid))
+    } catch (error) {
+      setStatusMessage('Unable to remove friend.')
+      console.error(error)
+    }
+  }
+
   const watchlistEntries = Object.values(entries).filter((entry) => entry.status === 'watchlist')
-  const ratedEntries = Object.values(entries).filter((entry) => entry.rating)
+  const ratedEntryKeys = new Set(Object.keys(reviews))
+  const ratedEntries = Object.values(entries).filter((entry) => ratedEntryKeys.has(`${entry.mediaType}:${entry.mediaId}`))
   const trackedEntries = Object.values(entries)
 
   const filteredWatchlistItems = homeFilter === 'tracked'
@@ -358,6 +547,8 @@ function App() {
             releaseDate: entry.releaseDate,
           }))
 
+  const existingReview = selectedItem ? reviews[`${selectedItem.mediaType}:${selectedItem.id}`] ?? null : null
+
   return (
     <div className="app-shell">
       <header className="app-shell__header">
@@ -372,7 +563,7 @@ function App() {
         <nav className="nav-pill" aria-label="Primary navigation">
           <button
             type="button"
-            className={activeView === 'movies' ? 'is-active' : ''}
+            className={screen === 'home' && activeView === 'movies' ? 'is-active' : ''}
             onClick={() => {
               setActiveView('movies')
               setScreen('home')
@@ -382,7 +573,7 @@ function App() {
           </button>
           <button
             type="button"
-            className={activeView === 'series' ? 'is-active' : ''}
+            className={screen === 'home' && activeView === 'series' ? 'is-active' : ''}
             onClick={() => {
               setActiveView('series')
               setScreen('home')
@@ -392,7 +583,7 @@ function App() {
           </button>
           <button
             type="button"
-            className={activeView === 'watchlist' ? 'is-active' : ''}
+            className={screen === 'home' && activeView === 'watchlist' ? 'is-active' : ''}
             onClick={() => {
               setActiveView('watchlist')
               setScreen('home')
@@ -411,12 +602,28 @@ function App() {
           >
             <span className="material-symbols-outlined">{darkMode ? 'light_mode' : 'dark_mode'}</span>
           </button>
-          <button type="button" className="icon-button" onClick={() => setScreen('search')} aria-label="Search">
-            <span className="material-symbols-outlined">search</span>
-          </button>
           <button
             type="button"
-            className="icon-button"
+            className={'icon-button' + (screen === 'search' ? ' is-active' : '')}
+            onClick={() => setScreen('search')}
+            aria-label="Search"
+          >
+            <span className="material-symbols-outlined">search</span>
+          </button>
+          {user ? (
+            <button
+              type="button"
+              className={'icon-button social-button' + (screen === 'social' ? ' is-active' : '')}
+              onClick={handleOpenSocial}
+              aria-label="Friends"
+            >
+              <span className="material-symbols-outlined">people</span>
+              {requestCount > 0 ? <span className="badge-count badge-on-icon">{requestCount}</span> : null}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={'icon-button' + (screen === 'profile' ? ' is-active' : '')}
             onClick={() => setScreen(screen === 'profile' ? 'home' : 'profile')}
             aria-label="Open profile"
           >
@@ -432,12 +639,43 @@ function App() {
           accentColor={accentColor}
           statusMessage={statusMessage}
           isFirebaseConfigured={isFirebaseConfigured}
+          friendCount={friends.length}
           onProfileNameChange={setProfileName}
           onAccentColorChange={setAccentColor}
           onSaveProfile={handleSaveProfile}
           onSignOut={handleSignOut}
           onGoogleSignIn={handleGoogleSignIn}
           onBack={() => setScreen('home')}
+          onOpenSocial={handleOpenSocial}
+        />
+      ) : screen === 'social' ? (
+        <SocialPage
+          friendRequests={friendRequests}
+          friends={friends}
+          friendUids={friendUids}
+          onAcceptRequest={handleAcceptRequest}
+          onDeclineRequest={handleDeclineRequest}
+          onSearchUsers={searchUsers}
+          onViewUser={handleViewUser}
+          onSendRequest={handleSendRequest}
+          onRemoveFriend={handleRemoveFriend}
+          onBack={() => setScreen('home')}
+          currentUserUid={user?.uid ?? ''}
+        />
+      ) : screen === 'userDetail' ? (
+        <UserDetailPage
+          profile={targetUser}
+          reviews={targetUserReviews}
+          isFriend={targetIsFriend}
+          isCurrentUser={targetUser?.uid === user?.uid}
+          hasPendingRequest={targetHasPendingRequest}
+          onAddFriend={() => {
+            if (targetUser && user) {
+              handleSendRequest(targetUser.uid, targetUser.name)
+            }
+          }}
+          onBack={() => setScreen('social')}
+          loading={targetUserLoading}
         />
       ) : screen === 'search' ? (
         <SearchPage
@@ -458,9 +696,11 @@ function App() {
           selectedItem={selectedItem}
           detailLoading={detailLoading}
           entries={entries}
+          existingReview={existingReview}
           onBack={() => setScreen('home')}
           onSaveEntry={handleSaveEntry}
-          onChangeRating={(item, rating) => handleSaveEntry(item, entries[`${item.mediaType}:${item.id}`]?.status ?? 'watched', rating)}
+          onSaveReview={handleSaveReview}
+          onDeleteReview={handleDeleteReview}
         />
       ) : (
         <HomePage

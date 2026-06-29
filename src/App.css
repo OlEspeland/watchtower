@@ -100,6 +100,11 @@
   cursor: pointer;
 }
 
+.icon-button.is-active {
+  background: var(--accent);
+  color: white;
+}
+
 .secondary-button {
   width: auto;
   height: auto;
@@ -682,10 +687,403 @@
   box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text-h);
 }
 
+.section-heading {
+  margin: 1rem 0 0.6rem;
+  font-size: 0.95rem;
+  color: var(--text-h);
+}
+
+/* Review Form */
+.review-form {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.review-form-heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  color: var(--text-h);
+}
+
+.review-comment-input {
+  display: block;
+  width: 100%;
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text-h);
+  font: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.review-form-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+.detail-review-section {
+  margin-top: 0.5rem;
+}
+
+/* Review Card */
+.review-card {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.review-card-poster {
+  flex-shrink: 0;
+  width: 56px;
+  height: 84px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.review-card-poster-fallback {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--accent), #38bdf8);
+  color: white;
+  font-size: 1.4rem;
+}
+
+.review-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.review-card-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.review-card-title {
+  font-size: 0.9rem;
+  color: var(--text-h);
+}
+
+.review-card-year {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.review-card-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.08rem;
+}
+
+.review-star {
+  font-size: 1rem;
+  color: var(--text-muted);
+  font-variation-settings: 'FILL' 0;
+}
+
+.review-star.is-filled {
+  color: var(--accent);
+  font-variation-settings: 'FILL' 1;
+}
+
+.review-star.is-half {
+  background: linear-gradient(90deg, var(--accent) 50%, var(--text-muted) 50%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-variation-settings: 'FILL' 1;
+}
+
+.review-card-rating {
+  margin-left: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.review-card-comment {
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.review-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.review-card-author {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.review-card-date {
+  color: var(--text-muted);
+}
+
+/* Social / Friends */
+.social-tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--accent-bg);
+}
+
+.social-tab {
+  padding: 0.45rem 0.85rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  transition: background 180ms ease, color 180ms ease;
+}
+
+.social-tab.is-active {
+  background: var(--accent);
+  color: white;
+}
+
+.social-tab-with-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.badge-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.badge-on-icon {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  font-size: 0.6rem;
+}
+
+.social-button {
+  position: relative;
+}
+
+/* Friend Request Card */
+.friend-request-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.friend-request-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.friend-avatar {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.friend-request-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.friend-request-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.friend-request-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+/* Friend Card */
+.friends-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.friend-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: border-color 180ms ease;
+}
+
+.friend-card:hover {
+  border-color: var(--accent);
+}
+
+.friend-card-main {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.friend-card-info {
+  flex: 1;
+}
+
+.friend-card-name {
+  font-size: 0.9rem;
+  color: var(--text-h);
+}
+
+.friend-card-remove {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 180ms ease, background 180ms ease;
+}
+
+.friend-card-remove:hover {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+/* User Search */
+.user-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.user-search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.user-search-main {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.friend-status-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.friend-status-badge {
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: var(--accent-bg);
+}
+
+/* User Detail Page */
+.user-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.user-detail-avatar {
+  width: 56px;
+  height: 56px;
+  font-size: 1.5rem;
+}
+
+.user-detail-info {
+  flex: 1;
+}
+
+.user-detail-info h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.user-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
 @media (max-width: 860px) {
   .app-shell__header {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.6rem;
   }
 
   .brand-block,
@@ -707,5 +1105,230 @@
 
   .app-shell__main {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .app-shell {
+    padding: 0.6rem;
+    gap: 0.75rem;
+  }
+
+  .app-shell__header {
+    padding: 0.6rem 0.75rem;
+    border-radius: 18px;
+    gap: 0.5rem;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+    font-size: 0.9rem;
+  }
+
+  .brand-block h1 {
+    font-size: 0.95rem;
+  }
+
+  .brand-label {
+    font-size: 0.68rem;
+  }
+
+  .nav-pill {
+    width: 100%;
+  }
+
+  .nav-pill button {
+    flex: 1;
+    padding: 0.5rem 0.4rem;
+    font-size: 0.85rem;
+    text-align: center;
+  }
+
+  .header-actions {
+    gap: 0.35rem;
+  }
+
+  .icon-button,
+  .secondary-button,
+  .primary-button {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .secondary-button,
+  .primary-button {
+    padding: 0.5rem 0.7rem;
+    font-size: 0.85rem;
+  }
+
+  .main-card,
+  .side-card {
+    padding: 0.9rem;
+    border-radius: 18px;
+  }
+
+  .card-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .content-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+  }
+
+  .content-grid.list-view {
+    gap: 0.35rem;
+  }
+
+  .media-card {
+    padding: 0.65rem;
+    border-radius: 16px;
+    gap: 0.5rem;
+  }
+
+  .media-card h3 {
+    font-size: 0.82rem;
+  }
+
+  .media-year {
+    font-size: 0.78rem;
+  }
+
+  .card-actions {
+    gap: 0.35rem;
+  }
+
+  /* Side card (watchlist overview) collapses inline */
+  .side-card .card-heading {
+    flex-direction: row;
+  }
+
+  .overview-filter {
+    padding: 0.7rem 0.8rem;
+  }
+
+  /* Detail page */
+  .detail-poster {
+    max-width: 240px;
+    margin: 0 auto;
+  }
+
+  .detail-body {
+    gap: 0.75rem;
+  }
+
+  .detail-copy {
+    font-size: 0.9rem;
+  }
+
+  .star-slider .star-icon {
+    font-size: 1.6rem;
+  }
+
+  /* Social page */
+  .social-tabs {
+    width: 100%;
+  }
+
+  .social-tab {
+    flex: 1;
+    text-align: center;
+    font-size: 0.78rem;
+    padding: 0.4rem 0.4rem;
+  }
+
+  .friend-request-card {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .friend-request-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .user-search-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .friend-card {
+    padding: 0.5rem 0.6rem;
+  }
+
+  .friend-card-name {
+    font-size: 0.82rem;
+  }
+
+  .friend-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 0.95rem;
+  }
+
+  .user-detail-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 1.2rem;
+  }
+
+  .user-detail-header {
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  /* Review card */
+  .review-card {
+    padding: 0.6rem;
+    gap: 0.6rem;
+  }
+
+  .review-card-poster {
+    width: 44px;
+    height: 66px;
+  }
+
+  .review-card-title {
+    font-size: 0.82rem;
+  }
+
+  .review-comment-input {
+    font-size: 0.85rem;
+  }
+
+  /* Profile */
+  .profile-field input {
+    padding: 0.65rem 0.8rem;
+  }
+
+  .profile-actions {
+    flex-direction: column;
+  }
+
+  .profile-actions .primary-button,
+  .profile-actions .secondary-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .search-bar input {
+    padding: 0.65rem 0.8rem;
+  }
+
+  .load-more {
+    padding: 0.55rem 0.8rem;
+    font-size: 0.82rem;
+  }
+
+  .badge-on-icon {
+    top: -1px;
+    right: -1px;
+    min-width: 14px;
+    height: 14px;
+    font-size: 0.5rem;
   }
 }

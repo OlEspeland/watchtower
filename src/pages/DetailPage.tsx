@@ -1,8 +1,8 @@
-import type { MediaItem, SavedEntry, EntryStatus } from '../types'
+import type { MediaItem, SavedEntry, EntryStatus, Review } from '../types'
 import CardHeading from '../components/CardHeading'
 import MediaPoster from '../components/MediaPoster'
 import EntryActions from '../components/EntryActions'
-import StarRating from '../components/StarRating'
+import ReviewForm from '../components/ReviewForm'
 import { getPosterUrl } from '../utils/media'
 
 function formatReleaseDate(dateString: string): string {
@@ -14,18 +14,22 @@ type DetailPageProps = {
   selectedItem: MediaItem
   detailLoading: boolean
   entries: Record<string, SavedEntry>
+  existingReview: Review | null
   onBack: () => void
   onSaveEntry: (item: MediaItem, status: EntryStatus) => void
-  onChangeRating: (item: MediaItem, rating: number | null) => void
+  onSaveReview: (item: MediaItem, rating: number, comment: string) => void
+  onDeleteReview: (item: MediaItem) => void
 }
 
 export default function DetailPage({
   selectedItem,
   detailLoading,
   entries,
+  existingReview,
   onBack,
   onSaveEntry,
-  onChangeRating,
+  onSaveReview,
+  onDeleteReview,
 }: DetailPageProps) {
   const entryKey = `${selectedItem.mediaType}:${selectedItem.id}`
   const currentEntry = entries[entryKey]
@@ -59,16 +63,21 @@ export default function DetailPage({
               <p>{selectedItem.overview || 'No synopsis available yet.'}</p>
               {selectedItem.genres?.length ? <p className="detail-genres">{selectedItem.genres.join(' • ')}</p> : null}
               {isUnreleased ? <p className="detail-release-date">Releases {formatReleaseDate(selectedItem.releaseDate!)}</p> : null}
+
+              <h4 className="section-heading">My tracking</h4>
               <EntryActions
                 entry={currentEntry}
                 onAddToWatchlist={() => onSaveEntry(selectedItem, 'watchlist')}
                 onMarkWatched={() => onSaveEntry(selectedItem, 'watched')}
               />
-              <StarRating
-                label="Your rating"
-                value={currentEntry?.rating ?? null}
-                onChange={(rating) => onChangeRating(selectedItem, rating)}
-              />
+
+              <div className="detail-review-section">
+                <ReviewForm
+                  existingReview={existingReview}
+                  onSave={(rating, comment) => onSaveReview(selectedItem, rating, comment)}
+                  onDelete={() => onDeleteReview(selectedItem)}
+                />
+              </div>
             </div>
           </div>
         </div>

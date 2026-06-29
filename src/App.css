@@ -285,6 +285,9 @@
 .media-card h3 {
   margin: 0.25rem 0 0.4rem;
   color: var(--text-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .media-title-button {
@@ -1081,9 +1084,8 @@
 
 @media (max-width: 860px) {
   .app-shell__header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.6rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
   .brand-block,
@@ -1092,6 +1094,8 @@
   }
 
   .nav-pill {
+    order: 3;
+    width: 100%;
     justify-content: center;
   }
 
@@ -1115,9 +1119,9 @@
   }
 
   .app-shell__header {
-    padding: 0.6rem 0.75rem;
+    padding: 0.5rem 0.65rem;
     border-radius: 18px;
-    gap: 0.5rem;
+    gap: 0.4rem;
   }
 
   .brand-mark {
@@ -1134,32 +1138,28 @@
     font-size: 0.68rem;
   }
 
-  .nav-pill {
-    width: 100%;
-  }
-
   .nav-pill button {
     flex: 1;
-    padding: 0.5rem 0.4rem;
-    font-size: 0.85rem;
+    padding: 0.45rem 0.3rem;
+    font-size: 0.8rem;
     text-align: center;
   }
 
   .header-actions {
-    gap: 0.35rem;
+    gap: 0.25rem;
   }
 
   .icon-button,
   .secondary-button,
   .primary-button {
-    min-width: 36px;
-    min-height: 36px;
+    min-width: 34px;
+    min-height: 34px;
   }
 
   .secondary-button,
   .primary-button {
-    padding: 0.5rem 0.7rem;
-    font-size: 0.85rem;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
   }
 
   .main-card,
@@ -1200,6 +1200,33 @@
 
   .card-actions {
     gap: 0.35rem;
+  }
+
+  .content-grid.list-view .media-card {
+    padding: 0.4rem 0.55rem;
+    gap: 0.4rem;
+  }
+
+  .content-grid.list-view .media-card .media-poster-shell {
+    flex: 0 0 56px;
+    width: 56px;
+  }
+
+  .content-grid.list-view .media-card h3 {
+    font-size: 0.82rem;
+  }
+
+  .content-grid.list-view .entry-star {
+    font-size: 0.72rem;
+  }
+
+  .content-grid.list-view .card-actions .icon-only-action {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+
+  .content-grid.list-view .card-actions .icon-only-action .material-symbols-outlined {
+    font-size: 1rem;
   }
 
   /* Side card (watchlist overview) collapses inline */
@@ -1330,5 +1357,147 @@
     min-width: 14px;
     height: 14px;
     font-size: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-shell {
+    padding: 0.4rem;
+    gap: 0.5rem;
+  }
+
+  .app-shell__header {
+    padding: 0.4rem 0.5rem;
+    border-radius: 14px;
+    gap: 0.3rem;
+  }
+
+  .brand-block h1,
+  .brand-label {
+    display: none;
+  }
+
+  .nav-pill button {
+    font-size: 0.72rem;
+    padding: 0.35rem 0.2rem;
+  }
+
+  .main-card,
+  .side-card {
+    padding: 0.7rem;
+    border-radius: 14px;
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .media-card {
+    padding: 0.5rem;
+    border-radius: 12px;
+    gap: 0.4rem;
+  }
+
+  .media-card h3 {
+    font-size: 0.78rem;
+  }
+
+  .media-year {
+    font-size: 0.72rem;
+  }
+
+  .card-actions {
+    gap: 0.25rem;
+  }
+
+  .icon-only-action {
+    width: 1.8rem;
+    height: 1.8rem;
+  }
+
+  .icon-only-action .material-symbols-outlined {
+    font-size: 1.1rem;
+  }
+
+  .content-grid.list-view .media-card {
+    padding: 0.35rem 0.45rem;
+    gap: 0.3rem;
+  }
+
+  .content-grid.list-view .media-card .media-poster-shell {
+    flex: 0 0 42px;
+    width: 42px;
+    border-radius: 8px;
+  }
+
+  .content-grid.list-view .media-card h3 {
+    font-size: 0.75rem;
+  }
+
+  .content-grid.list-view .media-year {
+    font-size: 0.65rem;
+  }
+
+  .content-grid.list-view .entry-star {
+    font-size: 0.62rem;
+  }
+
+  .content-grid.list-view .card-actions .icon-only-action {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .content-grid.list-view .card-actions .icon-only-action .material-symbols-outlined {
+    font-size: 0.85rem;
+  }
+
+  .overview-filter {
+    padding: 0.55rem 0.65rem;
+    font-size: 0.82rem;
+  }
+
+  .card-heading {
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .card-heading h2 {
+    font-size: 1rem;
+  }
+
+  .search-bar input,
+  .profile-field input {
+    padding: 0.55rem 0.7rem;
+    font-size: 0.85rem;
+  }
+
+  .detail-poster {
+    max-width: 180px;
+  }
+
+  .friend-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 0.8rem;
+  }
+
+  .social-tab {
+    font-size: 0.72rem;
+    padding: 0.3rem 0.3rem;
+  }
+
+  .friend-request-card {
+    padding: 0.5rem;
+  }
+
+  .review-card-poster {
+    width: 36px;
+    height: 54px;
+  }
+
+  .load-more {
+    padding: 0.45rem 0.6rem;
+    font-size: 0.78rem;
   }
 }

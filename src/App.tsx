@@ -385,7 +385,6 @@ function App() {
     }
 
     const entryKey = `${item.mediaType}:${item.id}`
-    const existingEntry = entries[entryKey]
     const nextEntry: SavedEntry = {
       mediaType: item.mediaType,
       mediaId: item.id,
